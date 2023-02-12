@@ -5,7 +5,7 @@
 /// <https://docs.substrate.io/reference/frame-pallets/>
 pub use pallet::*;
 
-use orml_traits::MultiCurrency;
+use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency};
 
 #[cfg(test)]
 mod mock;
@@ -37,7 +37,16 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-		type Currency: MultiCurrency<Self::AccountId>;
+		type Currency: MultiCurrency<Self::AccountId>
+			+ MultiCurrencyExtended<Self::AccountId>
+			+ MultiReservableCurrency<Self::AccountId>;
+
+		// 	type NativeCurrency: BasicCurrencyExtended<
+		// 			Self::AccountId,
+		// 			Balance = BalanceOf<Self>,
+		// 			Amount = AmountOf<Self>,
+		// 		> + BasicLockableCurrency<Self::AccountId, Balance = BalanceOf<Self>>
+		// 		+ BasicReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
 	}
 
 	// The pallet's runtime storage items.
@@ -113,10 +122,18 @@ pub mod pallet {
 
 		#[pallet::call_index(2)]
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
-		pub fn test_tokens(origin: OriginFor<T>, currency_id: CurrencyIdOf<T>) -> DispatchResult {
+		pub fn test_tokens(
+			origin: OriginFor<T>,
+			currency_id: CurrencyIdOf<T>,
+			total_supply: BalanceOf<T>,
+		) -> DispatchResult {
 			let _who = ensure_signed(origin)?;
 
 			T::Currency::total_balance(currency_id, &_who);
+
+			T::Currency::deposit(currency_id, &_who, total_supply)?;
+
+			// Self::deposit_event(Event::<T>::TokenIssued(&_who, total_supply));
 
 			Ok(())
 		}

@@ -322,6 +322,8 @@ impl orml_tokens::Config for Runtime {
 impl pallet_template::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
+
+	// to_do!()
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
