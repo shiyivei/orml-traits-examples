@@ -1,18 +1,12 @@
-use node_template_runtime::{
-	AccountId, AuraConfig, BalancesConfig, DexConfig, GenesisConfig, GrandpaConfig, Signature,
-	SudoConfig, SystemConfig, WASM_BINARY,
+use node_runtime::{
+	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
+	SystemConfig, WASM_BINARY,
 };
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
-
-pub const MILLICENTS: u128 = 1_000_000_000;
-pub const CENTS: u128 = 1_000 * MILLICENTS; // assume this is worth about a cent.
-pub const DOLLARS: u128 = 100 * CENTS;
-
-const INITIAL_BALANCE: u128 = 10_000_000 * DOLLARS;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -26,14 +20,6 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 		.expect("static values are valid; qed")
 		.public()
 }
-
-pub use primitives::{
-	currency::{
-		TokenInfo, ACA, AUSD, BNC, DOT, KAR, KBTC, KINT, KSM, KUSD, LCDOT, LDOT, LKSM, PHA, POV,
-		RENBTC, VSKSM,
-	},
-	TokenSymbol, TradingPair,
-};
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -163,34 +149,9 @@ fn testnet_genesis(
 		},
 		sudo: SudoConfig {
 			// Assign network admin rights.
-			key: Some(root_key.clone()),
+			key: Some(root_key),
 		},
+		assets: Default::default(),
 		transaction_payment: Default::default(),
-		tokens: Default::default(),
-		dex: DexConfig {
-			initial_listing_trading_pairs: vec![],
-			initial_enabled_trading_pairs: vec![],
-			initial_added_liquidity_pools: vec![],
-		},
-		// dex: DexConfig {
-		// 	initial_listing_trading_pairs: vec![],
-		// 	initial_enabled_trading_pairs: vec![
-		// 		TradingPair::from_currency_ids(POV, RENBTC).unwrap(),
-		// 		TradingPair::from_currency_ids(POV, DOT).unwrap(),
-		// 	],
-		// 	initial_added_liquidity_pools: vec![(
-		// 		root_key.clone(),
-		// 		vec![
-		// 			(
-		// 				TradingPair::from_currency_ids(POV, RENBTC).unwrap(),
-		// 				(1_000_000 * DOLLARS, 2_000_000 * DOLLARS),
-		// 			),
-		// 			(
-		// 				TradingPair::from_currency_ids(POV, DOT).unwrap(),
-		// 				(1_000_000 * DOLLARS, 2_000_000 * DOLLARS),
-		// 			),
-		// 		],
-		// 	)],
-		// },
 	}
 }

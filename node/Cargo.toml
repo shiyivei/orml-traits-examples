@@ -60,6 +60,8 @@ frame-benchmarking-cli = { version = "4.0.0-dev", git = "https://github.com/pari
 
 # Local Dependencies
 node-template-runtime = { version = "4.0.0-dev", path = "../runtime" }
+primitives = { package = "acala-primitives", path = "../primitives", default-features = false }
+pallet-dex = {package = "pallet-dex",version = "2.14.0", default-features = false, path = "../pallets/dex"}
 
 # CLI-specific dependencies
 try-runtime-cli = { version = "0.10.0-dev", optional = true, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.37" }
