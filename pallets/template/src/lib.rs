@@ -5,15 +5,22 @@
 /// <https://docs.substrate.io/reference/frame-pallets/>
 pub use pallet::*;
 
-use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency};
+use orml_traits::{
+	arithmetic::{Signed, SimpleArithmetic},
+	currency::TransferAll,
+	BalanceStatus, BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency,
+	BasicReservableCurrency, LockIdentifier, MultiCurrency, MultiCurrencyExtended,
+	MultiLockableCurrency, MultiReservableCurrency, NamedBasicReservableCurrency,
+	NamedMultiReservableCurrency,
+};
 use pallet_dex::traits::Exchange;
 use primitives::{AccountId, Balance, CurrencyId, TradingPair};
 use scale_info::prelude::vec::Vec;
 
 pub use primitives::{
 	currency::{
-		TokenInfo, ACA, AUSD, BNC, DOT, KAR, KBTC, KINT, KSM, KUSD, LCDOT, LDOT, LKSM, PHA, POV,
-		RENBTC, VSKSM,
+		TokenInfo, ACA, AUSD, BNC, DOT, KAR, KBTC, KINT, KSM, KUSD, LCDOT, LDOT, LKSM, PHA, RENBTC,
+		USDT, VSKSM,
 	},
 	TokenSymbol,
 };
@@ -31,6 +38,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_support::traits::fungibles::{Inspect, Mutate};
+	use frame_support::traits::{Randomness, ReservableCurrency};
 	use frame_system::pallet_prelude::*;
 
 	#[pallet::pallet]
@@ -48,6 +56,9 @@ pub mod pallet {
 	type CurrencyIdOf<T> = <<T as Config>::Currency as MultiCurrency<
 		<T as frame_system::Config>::AccountId,
 	>>::CurrencyId;
+	pub(crate) type AmountOf<T> = <<T as Config>::Currency as MultiCurrencyExtended<
+		<T as frame_system::Config>::AccountId,
+	>>::Amount;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -55,17 +66,15 @@ pub mod pallet {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type Currency: MultiCurrency<Self::AccountId>
-			+ MultiCurrencyExtended<Self::AccountId, CurrencyId = CurrencyId, Balance = Balance>
-			+ MultiReservableCurrency<Self::AccountId>;
+			+ MultiCurrencyExtended<Self::AccountId, CurrencyId = CurrencyId, Balance = Balance>;
 
-		// 	type NativeCurrency: BasicCurrencyExtended<
-		// 			Self::AccountId,
-		// 			Balance = BalanceOf<Self>,
-		// 			Amount = AmountOf<Self>,
-		// 		> + BasicLockableCurrency<Self::AccountId, Balance = BalanceOf<Self>>
-		// 		+ BasicReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
+		type NativeCurrency: ReservableCurrency<Self::AccountId, Balance = BalanceOf<Self>>;
 
 		type Exchange: Exchange<Self::AccountId, Balance, CurrencyId>;
+		#[pallet::constant]
+		type GetNativeCurrencyId: Get<CurrencyIdOf<Self>>;
+		#[pallet::constant]
+		type NativeCurrencyBalance: Get<BalanceOf<Self>>;
 	}
 
 	// The pallet's runtime storage items.
@@ -93,6 +102,8 @@ pub mod pallet {
 		NoneValue,
 		/// Errors should have helpful documentation associated with them.
 		StorageOverflow,
+		NotEnoughBalance,
+		NotNativeCurrency,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -141,56 +152,24 @@ pub mod pallet {
 
 		#[pallet::call_index(2)]
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
-		pub fn test_tokens(
+
+		pub fn mint_usdt(
 			origin: OriginFor<T>,
-			currency_id: CurrencyId,
-			total_supply: Balance,
+			currency_id: CurrencyIdOf<T>,
+			amount: AmountOf<T>,
 		) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
+			let who = ensure_signed(origin)?;
 
-			T::Currency::total_balance(currency_id, &_who);
+			let balance = T::NativeCurrencyBalance::get();
 
-			T::Currency::deposit(currency_id, &_who, total_supply)?;
-
-			// Self::deposit_event(Event::<T>::TokenIssued(&_who, total_supply));
-
-			Ok(())
-		}
-
-		#[pallet::call_index(3)]
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
-
-		pub fn mint_xtoken(
-			origin: OriginFor<T>,
-			currency_id: CurrencyId,
-			amount: Balance,
-		) -> DispatchResult {
-			Ok(())
-		}
-
-		#[pallet::call_index(4)]
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
-
-		pub fn swap_xtoken(
-			origin: OriginFor<T>,
-			buyer: T::AccountId,
-			sell_token_name: Vec<u8>,
-			amount: u64,
-		) -> DispatchResult {
-			ensure_none(origin)?;
-
-			T::Exchange::exchange_with_different_currency(
-				&buyer,
-				&[POV, RENBTC],
-				SwapLimit::ExactSupply(amount.into(), 0),
+			ensure!(
+				T::NativeCurrency::can_reserve(&who, T::NativeCurrencyBalance::get()),
+				Error::<T>::NotEnoughBalance
 			);
 
-			// Self::deposit_event(Event::TokenBought(
-			// 	buyer,
-			// 	sell_token_name,
-			// 	sell_amount,
-			// 	buy_token_name,
-			// ));
+			T::NativeCurrency::reserve(&who, T::NativeCurrencyBalance::get())?;
+
+			T::Currency::update_balance(currency_id, &who, amount)?;
 
 			Ok(())
 		}

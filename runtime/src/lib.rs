@@ -427,6 +427,9 @@ impl pallet_dex::Config for Runtime {
 impl pallet_template::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
+	type NativeCurrency = Balances;
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type NativeCurrencyBalance = ConstU128<512>;
 	type Exchange = Dex;
 }
 
